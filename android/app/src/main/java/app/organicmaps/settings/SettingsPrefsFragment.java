@@ -39,7 +39,6 @@ import app.organicmaps.util.ThemeSwitcher;
 import app.organicmaps.util.UiUtils;
 import app.organicmaps.util.Utils;
 import app.organicmaps.util.log.LogsManager;
-import app.organicmaps.search.SearchRecents;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Arrays;
@@ -273,8 +272,14 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment
       initEmulationBadStorage();
       initUseMobileDataPrefsCallbacks();
       initPowerManagementPrefsCallbacks();
-      initPlayServicesPrefsCallbacks();
-      initSearchPrivacyPrefsCallbacks();
+      final boolean playServices = initPlayServicesPrefsCallbacks();
+      if (!playServices)
+      {
+        // Remove "Tracking" section completely.
+        final PreferenceCategory tracking = findPreference(getString(R.string.pref_privacy));
+        if (tracking != null)
+          mPreferenceScreen.removePreference(tracking);
+      }
       initScreenSleepEnabledPrefsCallbacks();
       initShowOnLockScreenPrefsCallbacks();
     }
@@ -521,14 +526,17 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment
     });
   }
 
-  private void initPlayServicesPrefsCallbacks()
+  private boolean initPlayServicesPrefsCallbacks()
   {
     final Preference pref = findPreference(getString(R.string.pref_play_services));
     if (pref == null)
-      return;
+      return false;
 
     if (!LocationProviderFactory.isGoogleLocationAvailable(requireActivity().getApplicationContext()))
+    {
       removePreference(getString(R.string.pref_privacy), pref);
+      return false;
+    }
     else
     {
       ((TwoStatePreference) pref).setChecked(Config.useGoogleServices());
@@ -553,29 +561,8 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment
           return true;
         }
       });
-    }
-  }
-
-  private void initSearchPrivacyPrefsCallbacks()
-  {
-    final Preference pref = findPreference(getString(R.string.pref_search_history));
-    if (pref == null)
-      return;
-
-    final boolean isHistoryEnabled = Config.isSearchHistoryEnabled();
-    ((TwoStatePreference) pref).setChecked(isHistoryEnabled);
-    pref.setOnPreferenceChangeListener((preference, newValue) -> {
-      boolean newVal = (Boolean) newValue;
-      if (newVal != isHistoryEnabled)
-      {
-        Config.setSearchHistoryEnabled(newVal);
-        if (newVal)
-          SearchRecents.refresh();
-        else
-          SearchRecents.clear();
-      }
       return true;
-    });
+    }
   }
 
   private void init3dModePrefsCallbacks()
